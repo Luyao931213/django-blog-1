@@ -1,7 +1,12 @@
-from django.shortcuts import render
+from django.shortcuts import render,redirect
 from django.http import HttpResponse, HttpResponseRedirect, Http404
+from django import forms
+from django.utils import timezone
+from myapp.forms import MyPostForm
 from django.template import loader
-from blogging.models import Post
+from blogging.models import Post, Category
+from rest_framework import viewsets, permissions
+from blogging.serializers import PostSerializer, CategorySerializer
 
 
 def stub_view(request, *args, **kwargs):
@@ -20,6 +25,7 @@ def list_view(request):
     context = {'posts': posts}
     return render(request, 'blogging/list.html', context)
 
+
 def detail_view(request, post_id):
     published = Post.objects.exclude(published_date__exact=None)
     try:
@@ -28,3 +34,37 @@ def detail_view(request, post_id):
         raise Http404
     context = {'post': post}
     return render(request, 'blogging/detail.html', context)
+
+
+def add_model(request):
+
+    if request.method == 'POST':
+        form = MyPostForm(request.POST)
+        if form.is_valid():
+            model_instance = form.save(commit=False)
+            model_instance.published_date = timezone.now()
+            model_instance.save()
+            return redirect('/')
+    else:
+
+        form = MyPostForm()
+
+        return render(request, "blogging/my_template.html", {'form': form})
+
+
+class PostViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint for posts.
+    """
+    queryset = Post.objects.all().order_by('-modified_date')
+    serializer_class = PostSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+
+class CategoryViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint for category
+    """
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
+    permission_classes = [permissions.IsAuthenticated]
